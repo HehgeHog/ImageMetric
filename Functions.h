@@ -5,5 +5,5 @@
 class Functions
 {
 public:
-	
+	static int* Hist8(cv::Mat img);
 };
