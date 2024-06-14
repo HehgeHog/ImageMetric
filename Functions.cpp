@@ -1,6 +1,7 @@
 ﻿#include"Functions.h"
 #include<cmath>
 #include<vector>
+#include<stdio.h>
 #include<iostream>
 #include<opencv2/opencv.hpp>
 #include<opencv2/highgui.hpp>
@@ -169,7 +170,7 @@ double Functions::BREN(cv::Mat& img)
         return -1;
     }
     
-    if (img.channels() != 1)
+    if (img.channels() == 3)
     {
         cv::Mat channel[3];
         split(img, channel);
@@ -180,9 +181,14 @@ double Functions::BREN(cv::Mat& img)
             sum += temp;
         }
     }
-    else
+    else if(img.channels() == 1)
     {
         sum = BrenCalc(img);
+    }
+    else
+    {
+        std::cout << "BREN: image must be 1 or 3 channel" << std::endl;
+        return -1;
     }
 
     return (double)sum / (double)((img.cols * img.rows) * img.channels());
@@ -223,7 +229,7 @@ double Functions::CONT(cv::Mat& img)
         return -1;
     }
 
-    if (img.channels() != 1)
+    if (img.channels() == 3)
     {
         cv::Mat channel[3];
         split(img, channel);
@@ -238,7 +244,7 @@ double Functions::CONT(cv::Mat& img)
             }
         }
     }
-    else
+    else if(img.channels() == 1)
     {
         cont = ContrastCalc(img);
 
@@ -246,6 +252,11 @@ double Functions::CONT(cv::Mat& img)
         {
             sum += cont.at<uchar>(i);
         }
+    }
+    else
+    {
+        std::cout << "CONT: image must be 1 or 3 channel" << std::endl;
+        return -1;
     }
 
     return (double)sum/ (double)((img.cols * img.rows) * img.channels());
@@ -255,6 +266,8 @@ cv::Mat AverageX15(cv::Mat& img)
 {
     cv::Mat average;
     img.copyTo(average);
+    int sum = 0;
+    int counter = 0;
 
     for (int i = 0; i < img.rows; i++)
     {
@@ -264,12 +277,16 @@ cv::Mat AverageX15(cv::Mat& img)
             {
                 for (int y = -7; y <= 7; y++)
                 {
-                    if (x != 0 && y != 0 && i-x > 0 && i-x < img.rows && j-y > 0 && j-y < img.cols)
+                    if (x != 0 && y != 0 && i-x >= 0 && i-x < img.rows && j-y >= 0 && j-y < img.cols)
                     {
-                        average.at<uchar>(i, j) = std::abs(average.at<uchar>(i, j) - average.at<uchar>(i - x, j - y));
+                        sum += average.at<uchar>(i-x, j-y);
+                        counter += 1;
                     }
                 }
             }
+            average.at<uchar>(i, j) = std::round((double)sum / (double)counter);
+            counter = 0;
+            sum = 0;
         }
     }
 
@@ -307,7 +324,7 @@ double Functions::HELM(cv::Mat& img)
         return -1;
     }
 
-    if (img.channels() != 1)
+    if (img.channels() == 3)
     {
         cv::Mat channel[3];
         split(img, channel);
@@ -323,7 +340,7 @@ double Functions::HELM(cv::Mat& img)
         }
 
     }
-    else
+    else if(img.channels() == 1)
     {
         R = HelmCalc(img);
 
@@ -331,6 +348,11 @@ double Functions::HELM(cv::Mat& img)
         {
             coff += R.at<uchar>(i);
         }
+    }
+    else
+    {
+        std::cout << "HELM: image must be 1 or 3 channel" << std::endl;
+        return -1;
     }
 
     return coff/(double)((img.cols * img.rows) * img.channels());
@@ -347,7 +369,7 @@ double Functions::GLVM(cv::Mat& img)
         return -1;
     }
 
-    if (img.channels() != 1)
+    if (img.channels() == 3)
     {
         cv::Mat channel[3];
         split(img, channel);
@@ -362,13 +384,18 @@ double Functions::GLVM(cv::Mat& img)
             }
         }
     }
-    else
+    else if(img.channels() == 1)
     {
         average = AverageX15(img);
         for (unsigned i = 0; i < img.cols * img.rows; i++)
         {
             coff += std::pow((img.at<uchar>(i) - average.at<uchar>(i)), 2);
         }
+    }
+    else
+    {
+        std::cout << "GLVM: image must be 1 or 3 channel" << std::endl;
+        return -1;
     }
 
     return coff/(double)((img.cols * img.rows) * img.channels());
@@ -392,11 +419,11 @@ double Functions::GLVA(cv::Mat& img)
 
     if (img.depth() != 0 && img.depth() != 1) // if != 8 bit
     {
-        std::cout << "GLVM: Image depth error, not 8 bit" << std::endl;
+        std::cout << "GLVA: Image depth error, not 8 bit" << std::endl;
         return -1;
     }
 
-    if (img.channels() != 1)
+    if (img.channels() == 3)
     {
         cv::Mat channel[3];
         split(img, channel);
@@ -411,7 +438,7 @@ double Functions::GLVA(cv::Mat& img)
             }
         }
     }
-    else
+    else if (img.channels() == 1)
     {
         average = AverageImage(img);
         for (unsigned i = 0; i < img.cols * img.rows; i++)
@@ -419,6 +446,85 @@ double Functions::GLVA(cv::Mat& img)
             coff += std::pow((img.at<uchar>(i) - average), 2);
         }
     }
+    else
+    {
+        std::cout << "GLVA: image must be 1 or 3 channel" << std::endl;
+        return -1;
+    }
 
     return coff / (double)((img.cols * img.rows) * img.channels());
+}
+
+cv::Mat SimpleSmoothing(cv::Mat& img, int window)
+{
+    cv::Mat res;
+    img.copyTo(res);
+    int board = std::round((window / 2) - 0.2);
+    int sum = 0;
+    int counter = 0;
+
+    for (int i = 0; i < img.rows; i++)
+    {
+        for (int j = 0; j < img.cols; j++)
+        {
+            for (int x = -board; x <= board; x++)
+            {
+                for (int y = -board; y <= board; y++)
+                {
+                    if (x != 0 && y != 0 && i - x >= 0 && i - x < img.rows && j - y >= 0 && j - y < img.cols)
+                    {
+                        sum += res.at<uchar>(i - x, j - y);
+                        counter += 1;
+                    }
+                }
+            }
+
+            res.at<uchar>(i, j) = std::round((double)sum / (double)counter);
+            counter = 0;
+            sum = 0;
+        }
+    }
+
+    return res;
+}
+cv::Mat Functions::deNoise(cv::Mat& img, int window)
+{
+    cv::Mat res;
+
+    if (img.depth() != 0 && img.depth() != 1) // if != 8 bit
+    {
+        std::cout << "deNoise: Image depth error, not 8 bit" << std::endl;
+        return img;
+    }
+    if (window < 3 && window % 2 != 0)
+    {
+        std::cout << "deNoise: window must be odd and greater than 2" << std::endl;
+        return img;
+    }
+
+    if (img.channels() == 3)
+    {
+        cv::Mat channel[3];
+        cv::Mat temp(cv::Size(img.rows, img.cols), CV_8UC3, 0.0);
+        split(img, channel);
+
+        for (int i = 0; i < img.channels(); i++)
+        {
+            channel[i] = SimpleSmoothing(channel[i], window);
+        }
+
+        cv::merge((channel[0],channel[1],channel[2]), temp); // ошибка тут
+        res = temp;
+    }
+    else if(img.channels() == 1)
+    {
+        res = SimpleSmoothing(img, window);
+    }
+    else
+    {
+        std::cout << "deNoise: image must be 1 or 3 channel" << std::endl;
+        return img;
+    }
+
+    return res;
 }

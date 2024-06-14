@@ -14,4 +14,6 @@ public:
 	static double HELM(cv::Mat& img); //Helmli's measure
 	static double GLVM(cv::Mat& img); //gray-level variance modified
 	static double GLVA(cv::Mat& img); //gray-level variance
+
+	static cv::Mat deNoise(cv::Mat& img, int window);
 };

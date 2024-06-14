@@ -33,6 +33,9 @@ int main()
 	//std::cout << "GLVM (sharpness): " << coffGLVM << std::endl;
 	//std::cout << "GLVA (sharpness): " << coffGLVA << std::endl;
 
+	cv::Mat res = Functions::deNoise(img,3); // пока что не работает
+
+	cv::imshow("modified", img);
 	if (cv::waitKey(0) == 27) return 0;
 	return 0;
 }
