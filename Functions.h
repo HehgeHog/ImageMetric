@@ -7,6 +7,11 @@
 class Functions
 {
 public:
-	// оценочная функция резкости и контраста на основе абсолютного центрального момента
 	static double ACMO(cv::Mat& img); //Absolute Central Moment Operator
+	static double HISE(cv::Mat& img); //histogram entropy
+	static double BREN(cv::Mat& img); //Brenner's focus measure 
+	static double CONT(cv::Mat& img); //image contrast
+	static double HELM(cv::Mat& img); //Helmli's measure
+	static double GLVM(cv::Mat& img); //gray-level variance modified
+	static double GLVA(cv::Mat& img); //gray-level variance
 };

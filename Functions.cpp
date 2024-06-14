@@ -6,7 +6,7 @@
 #include<opencv2/highgui.hpp>
 #include<opencv2/imgcodecs.hpp>
 
-static int Sum(std::vector<int>& hist)
+static int SumHist(std::vector<int>& hist)
 {
     int sum = 0;
 
@@ -31,7 +31,7 @@ static double AverageHist(std::vector<int>& hist)
         sum += hist.at(i) * i;
     }
 
-    return sum / pow(hist.size(),2);
+    return double(sum)/double(pow(hist.size(),2));
 }
 static std::vector<int> Hist(cv::Mat& img, int size_hist)
 {
@@ -53,12 +53,6 @@ static std::vector<int> Hist(cv::Mat& img, int size_hist)
         temporary = img.data[i];
         hist.at(temporary) += 1;
     }
-
-    //проверка заполненности вектора
-    //for (int i = 0; i < hist.size(); i++)
-    //{
-    //    std::cout << i << ": " << hist.at(i) << std::endl;
-    //}
 
     return hist;
 }
@@ -91,7 +85,7 @@ double Functions::ACMO(cv::Mat& img)
 
     std::vector<int> hist = Hist(img, size); 
     double average = AverageHist(hist);
-    int sum = Sum(hist);
+    int sum = SumHist(hist);
 
     double p = 0;
     double coff = 0;
@@ -105,4 +99,326 @@ double Functions::ACMO(cv::Mat& img)
     return coff;
 }
 
+double Functions::HISE(cv::Mat& img)
+{
+    int size = 0;
 
+    //определение числа уровней яркости изображения
+    switch (img.depth())
+    {
+    case 0:
+    case 1:
+        size = pow(2, 8); // 8-bit
+        break;
+    case 2:
+    case 3:
+        size = pow(2, 16);
+        break;
+    case 4:
+    case 5:
+        size = pow(2, 32);
+        break;
+    case 6:
+        size = pow(2, 64);
+        break;
+    default:
+        std::cout << "HISE: Image depth error" << std::endl;
+        break;
+    }
+
+    std::vector<int> hist = Hist(img, size);
+    int sum = SumHist(hist);
+
+    double p = 0;
+    double coff = 0;
+
+    for (int i = 0; i < size; i++)
+    {
+        p = Probability(hist, sum, i);
+        if (p != 0)
+        {
+            coff += p * log(p);
+        }
+    }
+
+    return coff*(-1);
+};
+
+int BrenCalc(cv::Mat& img)
+{
+    int sum = 0;
+
+    for (int i = 0; i < img.rows - 2; i++)
+    {
+        for (int j = 0; j < img.cols; j++)
+        {
+            sum += std::abs(std::pow(img.at<uchar>(i, j) - img.at<uchar>(i + 2, j), 2));
+        }
+    }
+
+    return sum;
+}
+double Functions::BREN(cv::Mat& img)
+{
+    int sum = 0;
+    int temp = 0;
+
+    if (img.depth() != 0 && img.depth() != 1) // if != 8 bit
+    {
+        std::cout << "BREN: Image depth error, not 8 bit" << std::endl;
+        return -1;
+    }
+    
+    if (img.channels() != 1)
+    {
+        cv::Mat channel[3];
+        split(img, channel);
+
+        for (int i = 0; i < img.channels(); i++)
+        {
+            temp = BrenCalc(channel[i]);
+            sum += temp;
+        }
+    }
+    else
+    {
+        sum = BrenCalc(img);
+    }
+
+    return (double)sum / (double)((img.cols * img.rows) * img.channels());
+}
+
+cv::Mat ContrastCalc(cv::Mat& img)
+{
+    cv::Mat dst;
+    img.copyTo(dst);
+
+    for (int i = 1; i < dst.rows-1; i++)
+    {
+        for (int j = 1; j < dst.cols-1; j++)
+        {
+            for (int x = -1; x <= 1; x++)
+            {
+                for (int y = -1; y <= 1; y++)
+                {
+                    if (x != 0 && y != 0)
+                    {
+                        dst.at<uchar>(i, j) = std::abs(dst.at<uchar>(i, j) - dst.at<uchar>(i - x, j - y));
+                    }
+                }
+            }
+        }
+    }
+
+    return dst;
+}
+double Functions::CONT(cv::Mat& img)
+{
+    cv::Mat cont;
+    int sum = 0;
+
+    if (img.depth() != 0 && img.depth() != 1) // if != 8 bit
+    {
+        std::cout << "CONT: Image depth error, not 8 bit" << std::endl;
+        return -1;
+    }
+
+    if (img.channels() != 1)
+    {
+        cv::Mat channel[3];
+        split(img, channel);
+
+        for (int i = 0; i < img.channels(); i++)
+        {
+            cont = ContrastCalc(channel[i]);
+
+            for (unsigned j = 0; j < img.cols * img.rows; j++)
+            {
+                sum += cont.at<uchar>(j);
+            }
+        }
+    }
+    else
+    {
+        cont = ContrastCalc(img);
+
+        for (unsigned i = 0; i < img.cols * img.rows; i++)
+        {
+            sum += cont.at<uchar>(i);
+        }
+    }
+
+    return (double)sum/ (double)((img.cols * img.rows) * img.channels());
+}
+
+cv::Mat AverageX15(cv::Mat& img)
+{
+    cv::Mat average;
+    img.copyTo(average);
+
+    for (int i = 0; i < img.rows; i++)
+    {
+        for (int j = 0; j < img.cols; j++)
+        {
+            for (int x = -7; x <= 7; x++)
+            {
+                for (int y = -7; y <= 7; y++)
+                {
+                    if (x != 0 && y != 0 && i-x > 0 && i-x < img.rows && j-y > 0 && j-y < img.cols)
+                    {
+                        average.at<uchar>(i, j) = std::abs(average.at<uchar>(i, j) - average.at<uchar>(i - x, j - y));
+                    }
+                }
+            }
+        }
+    }
+
+    return average;
+}
+cv::Mat HelmCalc(cv::Mat& img)
+{
+    cv::Mat R;
+    img.copyTo(R);
+
+    cv::Mat average = AverageX15(img);
+
+    for (int i = 0; i < img.cols * img.rows; i++)
+    {
+        if (average.at<uchar>(i) >= img.at<uchar>(i))
+        {
+            R.at<uchar>(i) = average.at<uchar>(i);
+        }
+        else
+        {
+            R.at<uchar>(i) = img.at<uchar>(i);
+        }
+    }
+
+    return R;
+}
+double Functions::HELM(cv::Mat& img)
+{
+    double coff = 0;
+    cv::Mat R;
+
+    if (img.depth() != 0 && img.depth() != 1) // if != 8 bit
+    {
+        std::cout << "HELM: Image depth error, not 8 bit" << std::endl;
+        return -1;
+    }
+
+    if (img.channels() != 1)
+    {
+        cv::Mat channel[3];
+        split(img, channel);
+
+        for (int i = 0; i < img.channels(); i++)
+        {
+            R = HelmCalc(channel[i]);
+
+            for (int j = 0; j < img.cols * img.rows; j++)
+            {
+                coff += R.at<uchar>(j);
+            }
+        }
+
+    }
+    else
+    {
+        R = HelmCalc(img);
+
+        for (int i = 0; i < img.cols * img.rows; i++)
+        {
+            coff += R.at<uchar>(i);
+        }
+    }
+
+    return coff/(double)((img.cols * img.rows) * img.channels());
+}
+
+double Functions::GLVM(cv::Mat& img)
+{
+    double coff = 0;
+    cv::Mat average;
+
+    if (img.depth() != 0 && img.depth() != 1) // if != 8 bit
+    {
+        std::cout << "GLVM: Image depth error, not 8 bit" << std::endl;
+        return -1;
+    }
+
+    if (img.channels() != 1)
+    {
+        cv::Mat channel[3];
+        split(img, channel);
+
+        for (int i = 0; i < img.channels(); i++)
+        {
+            average = AverageX15(channel[i]);
+
+            for (unsigned j = 0; j < img.cols * img.rows; j++)
+            {
+                coff += std::pow((channel[i].at<uchar>(j) - average.at<uchar>(j)), 2);
+            }
+        }
+    }
+    else
+    {
+        average = AverageX15(img);
+        for (unsigned i = 0; i < img.cols * img.rows; i++)
+        {
+            coff += std::pow((img.at<uchar>(i) - average.at<uchar>(i)), 2);
+        }
+    }
+
+    return coff/(double)((img.cols * img.rows) * img.channels());
+}
+
+double AverageImage(cv::Mat& img)
+{
+    double sum = 0;
+
+    for (unsigned i = 0; i < img.rows * img.cols; i++)
+    {
+        sum += img.at<uchar>(i);
+    }
+
+    return sum /(double)(img.cols * img.rows);
+}
+double Functions::GLVA(cv::Mat& img)
+{
+    double coff = 0;
+    double average = 0;
+
+    if (img.depth() != 0 && img.depth() != 1) // if != 8 bit
+    {
+        std::cout << "GLVM: Image depth error, not 8 bit" << std::endl;
+        return -1;
+    }
+
+    if (img.channels() != 1)
+    {
+        cv::Mat channel[3];
+        split(img, channel);
+
+        for (int i = 0; i < img.channels(); i++)
+        {
+            average = AverageImage(channel[i]);
+
+            for (unsigned j = 0; j < img.cols * img.rows; j++)
+            {
+                coff += std::pow((channel[i].at<uchar>(j) - average), 2);
+            }
+        }
+    }
+    else
+    {
+        average = AverageImage(img);
+        for (unsigned i = 0; i < img.cols * img.rows; i++)
+        {
+            coff += std::pow((img.at<uchar>(i) - average), 2);
+        }
+    }
+
+    return coff / (double)((img.cols * img.rows) * img.channels());
+}
