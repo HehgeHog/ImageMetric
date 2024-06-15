@@ -4,13 +4,6 @@
 #include<string>
 #include<vector>
 
-	//cv::Mat img = cv::imread("images/frame.png", 1);
-	//if(img.empty())
-	//{
-	//	std::cout << "Image reading error" << std::endl;
-	//	return -1;
-	//}
-
 int main()
 {
 	cv::VideoCapture cap("video/test1.mp4");
@@ -50,10 +43,16 @@ int main()
 		//std::cout << "GLVM (sharpness): " << coffGLVM << std::endl;
 		//std::cout << "GLVA (sharpness): " << coffGLVA << std::endl;
 
-		//cv::Mat res = Functions::deNoise(img, 3);
+		//cv::Mat res = Functions::SimpleDeNoise(img, 3);
+
+		cv::Mat res;
+		for (int i = 0; i < 10; i++)
+		{
+			res = Functions::ImageSharpening(img, i);
+		}
 
 		cv::namedWindow("modified", cv::WINDOW_NORMAL);
-		cv::imshow("modified", img);
+		cv::imshow("modified", res);
 
 		if (cv::waitKey(1) == 27) flag = 1;
 	}

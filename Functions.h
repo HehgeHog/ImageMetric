@@ -15,5 +15,8 @@ public:
 	static double GLVM(cv::Mat& img); //gray-level variance modified
 	static double GLVA(cv::Mat& img); //gray-level variance
 
-	static cv::Mat deNoise(cv::Mat& img, int window);
+	static cv::Mat SimpleDeNoise(cv::Mat& img, int window);
+
+	static cv::Mat ImageSharpening(cv::Mat& img, int step);
+	static cv::Mat ContrastEnhancement(cv::Mat& img);
 };
