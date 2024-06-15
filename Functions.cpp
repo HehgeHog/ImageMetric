@@ -513,7 +513,7 @@ cv::Mat Functions::deNoise(cv::Mat& img, int window)
             channel[i] = SimpleSmoothing(channel[i], window);
         }
 
-        cv::merge((channel[0],channel[1],channel[2]), temp); // ошибка тут
+        cv::merge(channel,3, temp);
         res = temp;
     }
     else if(img.channels() == 1)
