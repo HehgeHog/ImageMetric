@@ -523,9 +523,46 @@ cv::Mat Functions::ImageSharpening(cv::Mat& img, int step)
 
     return res;
 }
-
-cv::Mat Functions::ContrastEnhancement(cv::Mat& img)
+cv::Mat Functions::ContrastEnhancement(cv::Mat& img, int step)
 {
     cv::Mat res;
+
+    if (img.depth() != 0 && img.depth() != 1) // if != 8 bit
+    {
+        std::cout << "ContrastEnhancement: Image depth error, not 8 bit" << std::endl;
+        return img;
+    }
+
+    std::vector<cv::Mat> channel;
+    cv::split(img, channel);
+    cv::Mat lut(1, 256, CV_8UC1);
+    double contrastLevel = double(100 + step) / 100;
+
+    uchar* p = lut.data;
+    double d = 0;
+
+    for (int i = 0; i < 256; i++)
+    {
+        d = ((double(i) / 255 - 0.5) * contrastLevel + 0.5) * 255;
+
+        if (d > 255)
+        {
+            d = 255;
+        }
+            
+        if (d < 0)
+        {
+            d = 0;
+        }
+            
+        p[i] = d;
+    }
+
+    LUT(channel[0], lut, channel[0]);
+    LUT(channel[1], lut, channel[1]);
+    LUT(channel[2], lut, channel[2]);
+
+    cv::merge(channel, res);
+
     return res;
 }

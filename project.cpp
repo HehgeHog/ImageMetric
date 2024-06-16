@@ -46,10 +46,9 @@ int main()
 		//cv::Mat res = Functions::SimpleDeNoise(img, 3);
 
 		cv::Mat res;
-		for (int i = 0; i < 10; i++)
-		{
-			res = Functions::ImageSharpening(img, i);
-		}
+
+		res = Functions::ImageSharpening(img, 5);
+		res = Functions::ContrastEnhancement(res, 5);
 
 		cv::namedWindow("modified", cv::WINDOW_NORMAL);
 		cv::imshow("modified", res);

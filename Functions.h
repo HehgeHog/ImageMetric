@@ -18,5 +18,5 @@ public:
 	static cv::Mat SimpleDeNoise(cv::Mat& img, int window);
 
 	static cv::Mat ImageSharpening(cv::Mat& img, int step);
-	static cv::Mat ContrastEnhancement(cv::Mat& img);
+	static cv::Mat ContrastEnhancement(cv::Mat& img, int step);
 };
