@@ -513,7 +513,7 @@ cv::Mat Functions::ImageSharpening(cv::Mat& img, int step)
 
         float matr[9]{
             -0.0375 - 0.05 * step, -0.0375 - 0.05 * step, -0.0375 - 0.05 * step,
-            -0.0375 - 0.05 * step, 1.3 + 0.4 * step, -0.0375 - 0.05 * step,
+            -0.0375 - 0.05 * step, 1.3 + 0.4 * step, -0.0375 - 0.05 * step, 
             -0.0375 - 0.05 * step, -0.0375 - 0.05 * step, -0.0375 - 0.05 * step
         };
         cv::Mat kernel_matrix = cv::Mat(3, 3, CV_32FC1, &matr);
@@ -525,6 +525,8 @@ cv::Mat Functions::ImageSharpening(cv::Mat& img, int step)
 }
 cv::Mat Functions::ContrastEnhancement(cv::Mat& img, int step)
 {
+    //Контраст определяется в разности яркостей. 
+    //Для увеличения контраста нам нужно раздвинуть диапазон яркостей от центра к краям.
     cv::Mat res;
 
     if (img.depth() != 0 && img.depth() != 1) // if != 8 bit
@@ -563,6 +565,48 @@ cv::Mat Functions::ContrastEnhancement(cv::Mat& img, int step)
     LUT(channel[2], lut, channel[2]);
 
     cv::merge(channel, res);
+
+    return res;
+}
+cv::Mat Functions::Saturation(cv::Mat& img, int step)
+{
+    //Для изменения насыщенности изображение преобразуется в систему цветности HSV и разбивается на слои.
+    //К значениям слоя «Sature» прибавляется шаг. 
+    cv::Mat res;
+    std::vector<cv::Mat> hsv;
+    cv::cvtColor(img, img, cv::ColorConversionCodes::COLOR_RGB2HSV_FULL);
+    cv::split(img, hsv);
+    hsv[1] += step * 5;
+    cv::merge(hsv, res);
+    cv::cvtColor(res, res, cv::ColorConversionCodes::COLOR_HSV2RGB_FULL);
+    return res;
+}
+cv::Mat Functions::BrightnessChange(cv::Mat& img, int step)
+{
+    cv::Mat res;
+    img.copyTo(res);
+    cv::Mat kernel_matrix;
+
+    if (step < 0)
+    {
+        float matr[9]{
+             -0.05 - 0.15 * step, 0.02 + 0.05 * step, -0.05 - 0.15 * step,
+              0.02 + 0.05 * step, 0.8 + 0.5 * step, 0.02 + 0.05 * step,
+             -0.05 - 0.15 * step, 0.02 + 0.05 * step, -0.05 - 0.15 * step
+        };
+        kernel_matrix = cv::Mat(3, 3, CV_32FC1, &matr);
+    }
+    else
+    {
+        float matr[9]{
+            -0.05 - 0.15 * step, 0.015 + 0.05 * step, -0.05 - 0.15 * step,
+             0.015 + 0.05 * step, 1.3 + 0.5 * step, 0.015 + 0.05 * step,
+            -0.05 - 0.15 * step, 0.015 + 0.05 * step, -0.05 - 0.15 * step
+        };
+        kernel_matrix = cv::Mat(3, 3, CV_32FC1, &matr);
+    }
+        
+    cv::filter2D(img, res, 32, kernel_matrix);
 
     return res;
 }

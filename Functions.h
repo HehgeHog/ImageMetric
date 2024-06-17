@@ -19,4 +19,6 @@ public:
 
 	static cv::Mat ImageSharpening(cv::Mat& img, int step);
 	static cv::Mat ContrastEnhancement(cv::Mat& img, int step);
+	static cv::Mat Saturation(cv::Mat& img, int step);
+	static cv::Mat BrightnessChange(cv::Mat& img, int step);
 };
