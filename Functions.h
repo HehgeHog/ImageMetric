@@ -7,6 +7,9 @@
 class Functions
 {
 public:
+	static void CalcMetrics(cv::Mat& img);
+	static void show(double coff, std::string name);
+
 	static double ACMO(cv::Mat& img); //Absolute Central Moment Operator
 	static double HISE(cv::Mat& img); //histogram entropy
 	static double BREN(cv::Mat& img); //Brenner's focus measure 

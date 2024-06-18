@@ -6,7 +6,7 @@
 
 int main()
 {
-	cv::VideoCapture cap("video/test1.mp4");
+	cv::VideoCapture cap("video/cam_1_14.mp4");
 	if (!cap.isOpened())
 	{
 		std::cout << "Error opening video stream" << std::endl;
@@ -14,6 +14,13 @@ int main()
 	}
 
 	bool flag = 0;
+	int step = 0;
+
+	cv::namedWindow("Original", cv::WINDOW_NORMAL);
+	cv::namedWindow("Modified", cv::WINDOW_NORMAL);
+	cv::namedWindow("Trackbar", 0);
+
+	cv::createTrackbar("name:", "Trackbar", &step, 15);
 
 	while (flag == 0)
 	{
@@ -24,48 +31,28 @@ int main()
 			return 0;
 		}
 
-		cv::namedWindow("original", cv::WINDOW_NORMAL);
-		cv::imshow("original", img);
+		cv::imshow("Original", img);
 
 		double t0 = (double)cv::getTickCount();
-		double coffACMO = Functions::ACMO(img);
-		double coffHISE = Functions::HISE(img);
-		double coffBREN = Functions::BREN(img);
-		
-		//double coffCONT = Functions::CONT(img);
-		//double coffHELM = Functions::HELM(img); // долгий расчет
-		//double coffGLVM = Functions::GLVM(img); // долгий расчет
-		//double coffGLVA = Functions::GLVA(img); // долгий расчет
-
-		std::cout << "ACMO (sharpness and contrast): " << coffACMO << std::endl;
-		std::cout << "HISE (sharpness): " << coffHISE << std::endl;
-		std::cout << "BREN (sharpness): " << coffBREN << std::endl;
-		//std::cout << "CONT (contrast): " << coffCONT << std::endl;
-		//std::cout << "HELM (sharpness): " << coffHELM << std::endl;
-		//std::cout << "GLVM (sharpness): " << coffGLVM << std::endl;
-		//std::cout << "GLVA (sharpness): " << coffGLVA << std::endl;
+		Functions::CalcMetrics(img);
 
 		//cv::Mat res = Functions::SimpleDeNoise(img, 3);
 
 		cv::Mat res;
 
-		//res = Functions::ImageSharpening(img, 2); // повышение резкости
-		res = Functions::ContrastEnhancement(img, 1); // повышение контраста
-		//res = Functions::Saturation(res, 1); // повышение насыщенности
-		//res = Functions::BrightnessChange(img, -5); // изменение яркости
+		std::cout << "step = " << step << std::endl;
 
-		coffACMO = Functions::ACMO(res);
-		coffHISE = Functions::HISE(res);
-		coffBREN = Functions::BREN(res);
+		//res = Functions::ImageSharpening(img, step); // повышение резкости
+		res = Functions::ContrastEnhancement(res, 0); // повышение контраста
+		//res = Functions::Saturation(res, 0); // повышение насыщенности
+		//res = Functions::BrightnessChange(img, 0); // изменение яркости
+		
+		Functions::CalcMetrics(res);
 
-		std::cout << "ACMO2 (sharpness and contrast): " << coffACMO << std::endl;
-		std::cout << "HISE2 (sharpness): " << coffHISE << std::endl;
-		std::cout << "BREN2 (sharpness): " << coffBREN << std::endl << std::endl;
-
-		cv::namedWindow("modified", cv::WINDOW_NORMAL);
-		cv::imshow("modified", res);
+		cv::imshow("Modified", img);
 
 		std::cout << "Time to calculate: " << ((double)cv::getTickCount() - t0) / cv::getTickFrequency() << " seconds" << std::endl << std::endl;
+		
 		if (cv::waitKey(1) == 27) flag = 1;
 	}
 

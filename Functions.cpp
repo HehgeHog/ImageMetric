@@ -7,6 +7,32 @@
 #include<opencv2/highgui.hpp>
 #include<opencv2/imgcodecs.hpp>
 
+void Functions::CalcMetrics(cv::Mat& img)
+{
+    std::vector<std::string> Name = {"ACMO","HISE","BREN"}; // {"ACMO","HISE","BREN", "CONT", "HELM", "GLVM", "GLVA"};
+    
+    double coffACMO = Functions::ACMO(img);
+    double coffHISE = Functions::HISE(img);
+    double coffBREN = Functions::BREN(img);
+    //double coffCONT = Functions::CONT(img); // долгий расчет
+    //double coffHELM = Functions::HELM(img); // долгий расчет
+    //double coffGLVM = Functions::GLVM(img); // долгий расчет
+    //double coffGLVA = Functions::GLVA(img); // долгий расчет
+
+    std::vector<double> Coff = {coffACMO,coffHISE,coffBREN};
+
+    std::cout << "--------------------" << std::endl;
+
+    for (int i = 0; i < 3; i++)
+    {
+        show(Coff[i],Name[i]);
+    }
+}
+void Functions::show(double coff, std::string name)
+{
+    std::cout << name << " : " << coff << std::endl;
+}
+
 static int SumHist(std::vector<int>& hist)
 {
     int sum = 0;
