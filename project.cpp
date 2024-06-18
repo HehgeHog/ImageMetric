@@ -6,7 +6,7 @@
 
 int main()
 {
-	cv::VideoCapture cap("video/cam_1_14.mp4");
+	cv::VideoCapture cap("video/test1.mp4");
 	if (!cap.isOpened())
 	{
 		std::cout << "Error opening video stream" << std::endl;
@@ -14,13 +14,19 @@ int main()
 	}
 
 	bool flag = 0;
-	int step = 0;
+	int step1 = 0;
+	int step2 = 0;
+	int step3 = 0;
+	int step4 = -20;
 
 	cv::namedWindow("Original", cv::WINDOW_NORMAL);
 	cv::namedWindow("Modified", cv::WINDOW_NORMAL);
-	cv::namedWindow("Trackbar", 0);
+	cv::namedWindow("Trackbar", cv::WINDOW_NORMAL);
 
-	cv::createTrackbar("name:", "Trackbar", &step, 15);
+	cv::createTrackbar("Sharpening:", "Trackbar", &step1, 50);
+	cv::createTrackbar("Contrast:", "Trackbar", &step2, 50);
+	cv::createTrackbar("Saturation:", "Trackbar", &step3, 50);
+	cv::createTrackbar("BrightnessChange:", "Trackbar", &step4, 20);
 
 	while (flag == 0)
 	{
@@ -40,16 +46,14 @@ int main()
 
 		cv::Mat res;
 
-		std::cout << "step = " << step << std::endl;
-
-		//res = Functions::ImageSharpening(img, step); // повышение резкости
-		res = Functions::ContrastEnhancement(res, 0); // повышение контраста
-		//res = Functions::Saturation(res, 0); // повышение насыщенности
-		//res = Functions::BrightnessChange(img, 0); // изменение яркости
+		res = Functions::ImageSharpening(img, step1); // повышение резкости
+		res = Functions::ContrastEnhancement(res, step2); // повышение контраста
+		res = Functions::Saturation(res, step3); // повышение насыщенности
+		res = Functions::BrightnessChange(res, step4); // изменение яркости
 		
 		Functions::CalcMetrics(res);
 
-		cv::imshow("Modified", img);
+		cv::imshow("Modified", res);
 
 		std::cout << "Time to calculate: " << ((double)cv::getTickCount() - t0) / cv::getTickFrequency() << " seconds" << std::endl << std::endl;
 		
