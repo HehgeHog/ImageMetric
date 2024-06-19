@@ -636,3 +636,31 @@ cv::Mat Functions::BrightnessChange(cv::Mat& img, int step)
 
     return res;
 }
+
+cv::Mat GetGammaExpo(int step)
+{
+    cv::Mat result(1, 256, CV_8UC1);
+
+    uchar* p = result.data;
+    for (int i = 0; i < 256; i++)
+    {
+        p[i] = AddDoubleToByte(i, std::sin(i * 0.01255) * step * 10);
+    }
+
+    return result;
+}
+
+byte AddDoubleToByte(byte bt, double d)
+{
+    
+    std::byte result = bt;
+    if (double(result) + d > 255)
+        result = 255;
+    else if (double(result) + d < 0)
+        result = 0;
+    else
+    {
+        result += d;
+    }
+    return result;
+}
