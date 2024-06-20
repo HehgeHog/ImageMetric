@@ -6,7 +6,7 @@
 
 int main()
 {
-	cv::VideoCapture cap("video/test1.mp4");
+	cv::VideoCapture cap("video/cam_1_14.mp4");
 	if (!cap.isOpened())
 	{
 		std::cout << "Error opening video stream" << std::endl;
@@ -18,6 +18,7 @@ int main()
 	int step2 = 0;
 	int step3 = 0;
 	int step4 = -20;
+	int step5 = 0;
 
 	cv::namedWindow("Original", cv::WINDOW_NORMAL);
 	cv::namedWindow("Modified", cv::WINDOW_NORMAL);
@@ -27,6 +28,7 @@ int main()
 	cv::createTrackbar("Contrast:", "Trackbar", &step2, 50);
 	cv::createTrackbar("Saturation:", "Trackbar", &step3, 50);
 	cv::createTrackbar("BrightnessChange:", "Trackbar", &step4, 20);
+	cv::createTrackbar("Expo:", "Trackbar", &step5, 60);
 
 	while (flag == 0)
 	{
@@ -50,7 +52,8 @@ int main()
 		res = Functions::ContrastEnhancement(res, step2); // повышение контраста
 		res = Functions::Saturation(res, step3); // повышение насыщенности
 		res = Functions::BrightnessChange(res, step4); // изменение яркости
-		
+		res = Functions::Expo(img, step5);
+
 		Functions::CalcMetrics(res);
 
 		cv::imshow("Modified", res);

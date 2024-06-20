@@ -602,7 +602,7 @@ cv::Mat Functions::Saturation(cv::Mat& img, int step)
     std::vector<cv::Mat> hsv;
     cv::cvtColor(img, img, cv::ColorConversionCodes::COLOR_RGB2HSV_FULL);
     cv::split(img, hsv);
-    hsv[1] += step * 5;
+    hsv[1] += step * 2;
     cv::merge(hsv, res);
     cv::cvtColor(res, res, cv::ColorConversionCodes::COLOR_HSV2RGB_FULL);
     return res;
@@ -637,6 +637,21 @@ cv::Mat Functions::BrightnessChange(cv::Mat& img, int step)
     return res;
 }
 
+unsigned char AddDoubleToByte(unsigned char bt, double d)
+{
+
+    unsigned char result = bt;
+    if (double(result) + d > 255)
+        result = 255;
+    else if (double(result) + d < 0)
+        result = 0;
+    else
+    {
+        result += d;
+    }
+    return result;
+}
+
 cv::Mat GetGammaExpo(int step)
 {
     cv::Mat result(1, 256, CV_8UC1);
@@ -650,17 +665,18 @@ cv::Mat GetGammaExpo(int step)
     return result;
 }
 
-byte AddDoubleToByte(byte bt, double d)
+cv::Mat Functions::Expo(cv::Mat& img, int step)
 {
+    cv::Mat res;
+
+    std::vector<cv::Mat> hsv;
+    cv::cvtColor(img, res, cv::ColorConversionCodes::COLOR_RGB2HSV_FULL);
+    cv::Mat lut = GetGammaExpo(step);
+    cv::split(res, hsv);
+    cv::LUT(hsv[2], lut, hsv[2]);
+    cv::merge(hsv, res);
+    cv::cvtColor(res, res, cv::ColorConversionCodes::COLOR_HSV2RGB_FULL);
     
-    std::byte result = bt;
-    if (double(result) + d > 255)
-        result = 255;
-    else if (double(result) + d < 0)
-        result = 0;
-    else
-    {
-        result += d;
-    }
-    return result;
+    return res;
 }
+
