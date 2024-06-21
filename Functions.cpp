@@ -637,7 +637,7 @@ cv::Mat Functions::BrightnessChange(cv::Mat& img, int step)
     return res;
 }
 
-unsigned char AddDoubleToByte(unsigned char bt, double d)
+unsigned char DoubleToByte(unsigned char bt, double d)
 {
 
     unsigned char result = bt;
@@ -651,32 +651,48 @@ unsigned char AddDoubleToByte(unsigned char bt, double d)
     }
     return result;
 }
-
-cv::Mat GetGammaExpo(int step)
+cv::Mat HistFunc(int step)
 {
     cv::Mat result(1, 256, CV_8UC1);
 
     uchar* p = result.data;
     for (int i = 0; i < 256; i++)
     {
-        p[i] = AddDoubleToByte(i, std::sin(i * 0.01255) * step * 10);
+        p[i] = DoubleToByte(i, std::sin(i * 0.01255) * step * 10);
     }
 
     return result;
 }
-
 cv::Mat Functions::Expo(cv::Mat& img, int step)
 {
     cv::Mat res;
 
     std::vector<cv::Mat> hsv;
     cv::cvtColor(img, res, cv::ColorConversionCodes::COLOR_RGB2HSV_FULL);
-    cv::Mat lut = GetGammaExpo(step);
+    cv::Mat lut = HistFunc(step);
     cv::split(res, hsv);
     cv::LUT(hsv[2], lut, hsv[2]);
     cv::merge(hsv, res);
     cv::cvtColor(res, res, cv::ColorConversionCodes::COLOR_HSV2RGB_FULL);
     
+    return res;
+}
+
+cv::Mat Functions::Hue(cv::Mat& img, int step)
+{
+    cv::Mat res;
+
+    std::vector<cv::Mat> rgb;
+    cv::Mat lut0 = HistFunc(step);
+    cv::Mat lut1 = HistFunc(-step);
+    cv::Mat lut2 = HistFunc(step);
+    cv::split(img, rgb);
+
+    LUT(rgb[0], lut0, rgb[0]);
+    LUT(rgb[1], lut1, rgb[1]);
+    LUT(rgb[2], lut2, rgb[2]);
+    cv::merge(rgb, res);
+
     return res;
 }
 
