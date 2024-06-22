@@ -20,6 +20,7 @@ int main()
 	int step4 = -20;
 	int step5 = 0;
 	int step6 = 0;
+	int step7 = 0;
 
 	cv::namedWindow("Original", cv::WINDOW_NORMAL);
 	cv::namedWindow("Modified", cv::WINDOW_NORMAL);
@@ -31,6 +32,7 @@ int main()
 	cv::createTrackbar("BrightnessChange:", "Trackbar", &step4, 20);
 	cv::createTrackbar("Expo:", "Trackbar", &step5, 60);
 	cv::createTrackbar("Hue:", "Trackbar", &step6, 60);
+	cv::createTrackbar("Temperature :", "Trackbar", &step7, 60);
 
 	while (flag == 0)
 	{
@@ -54,8 +56,9 @@ int main()
 		//res = Functions::ContrastEnhancement(res, step2); // повышение контраста
 		//res = Functions::Saturation(res, step3); // повышение насыщенности
 		//res = Functions::BrightnessChange(res, step4); // изменение яркости
-		//res = Functions::Expo(img, step5);
-		res = Functions::Hue(img, step6);
+		//res = Functions::Expo(img, step5); // изменения экспозиции
+		//res = Functions::Hue(img, step6); // изменения оттенка
+		res = Functions::Temperature(img, step7); // изменения цветовой температуры
 
 		Functions::CalcMetrics(res);
 

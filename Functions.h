@@ -26,4 +26,5 @@ public:
 	static cv::Mat BrightnessChange(cv::Mat& img, int step);
 	static cv::Mat Expo(cv::Mat& img, int step);
 	static cv::Mat Hue(cv::Mat& img, int step);
+	static cv::Mat Temperature(cv::Mat& img, int step);
 };

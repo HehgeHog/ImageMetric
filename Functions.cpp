@@ -695,4 +695,21 @@ cv::Mat Functions::Hue(cv::Mat& img, int step)
 
     return res;
 }
+cv::Mat Functions::Temperature(cv::Mat& img, int step)
+{
+    cv::Mat res;
+
+    std::vector<cv::Mat> rgb;
+    cv::Mat lut0 = HistFunc(-step * 2);
+    cv::Mat lut1 = HistFunc(step);
+    cv::Mat lut2 = HistFunc(step);
+    cv::split(img, rgb);
+
+    LUT(rgb[0], lut0, rgb[0]);
+    LUT(rgb[1], lut1, rgb[1]);
+    LUT(rgb[2], lut2, rgb[2]);
+    cv::merge(rgb, res);
+
+    return res;
+}
 
