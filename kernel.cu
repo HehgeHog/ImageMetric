@@ -4,6 +4,10 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/opencv.hpp>
 
+#include <iostream>
+#include <thrust/device_vector.h>
+#include <thrust/reduce.h>
+
 __device__ void sort(unsigned char* filterVector);
 __device__ void RGBtoHSV(unsigned char r, unsigned char g, unsigned char b, float* h, float* s, float* v);
 __device__ void HSVtoRGB(float h, float s, float v, unsigned char* r, unsigned char* g, unsigned char* b);
@@ -97,9 +101,9 @@ cv::Mat BrightnessChange_CUDA(cv::Mat& img, int step)
 
 	float matr[9]
 	{
-		-0.05 - 0.15 * step, 0.015 + 0.05 * step, -0.05 - 0.15 * step,
+		-0.05 - 0.16 * step, 0.015 + 0.05 * step, -0.05 - 0.16 * step,
 		0.015 + 0.05 * step, 1.3 + 0.5 * step, 0.015 + 0.05 * step,
-		-0.05 - 0.15 * step, 0.015 + 0.05 * step, -0.05 - 0.15 * step
+		-0.05 - 0.16 * step, 0.015 + 0.05 * step, -0.05 - 0.16 * step
 	};
 
 	if (step < 0)
@@ -245,6 +249,71 @@ float HELM_CUDA(cv::Mat& img)
 	float res_coff = sum / float(inputSize);
 
 	return res_coff;
+}
+
+
+
+static int SumHist(std::vector<int>& hist)
+{
+	int sum = 0;
+
+	//подсчет количества всех пикселей
+	for (int i = 0; i < hist.size(); i++)
+	{
+		sum += hist.at(i);
+	}
+
+	return sum;
+}
+static double Probability(std::vector<int>& hist, int sum, int brightness)
+{
+	return (double)hist.at(brightness) / (double)sum;
+}
+static double AverageHist(std::vector<int>& hist)
+{
+	int sum = 0;
+	//сумма всех значений пикселей (сумма яркостей)
+	for (int i = 0; i < hist.size(); i++)
+	{
+		sum += hist.at(i) * i;
+	}
+
+	return double(sum) / double(pow(hist.size(), 2));
+}
+static std::vector<int> Hist(cv::Mat& img, int size_hist)
+{
+	int temporary = 0;
+
+	std::vector <int> hist(size_hist);
+
+	//рассчет значений гистограммы
+	unsigned size = img.cols * img.rows * img.channels();
+	for (unsigned i = 0; i < size; i++)
+	{
+		temporary = img.data[i];
+		hist.at(temporary) += 1;
+	}
+
+	return hist;
+}
+float ACMO_CUDA(cv::Mat& img)
+{
+	int size = 256;
+
+	std::vector<int> hist = Hist(img, size);
+	double average = AverageHist(hist);
+	int sum = SumHist(hist);
+
+	double p = 0;
+	double coff = 0;
+
+	for (int i = 0; i < size; i++)
+	{
+		p = Probability(hist, sum, i);
+		coff += std::abs(i - average) * p;
+	}
+
+	return coff;
 }
 
 __global__ void Inversion(uchar* img, uchar* output)

@@ -33,8 +33,8 @@ int main()
 	cv::createTrackbar("Sharpening:", "trackbar", &step1, 1);
 	cv::createTrackbar("Inversion:", "trackbar", &step2, 1);
 	cv::createTrackbar("Saturation:", "trackbar", &istep, 40);
-	cv::createTrackbar("BrightPositive:", "trackbar", &step_light, 20);
-	cv::createTrackbar("BrightNegative:", "trackbar", &step_black, 20);
+	cv::createTrackbar("PosBright:", "trackbar", &step_light, 20);
+	cv::createTrackbar("NegBright:", "trackbar", &step_black, 20);
 
 	while (flag == 0)
 	{
@@ -57,24 +57,26 @@ int main()
 			step_light = -step_black;
 		}
 
+		float coffHELM_first = HELM_CUDA(img);
+
 		//res = SimpleDeNoise_CUDA(img);
 
+		res = Image_Inversion_CUDA(img, step2);
+		//res = ImageSharpening_CUDA(res, step1);
+		
+		//res = BrightnessChange_CUDA(res, step_light);
+		//res = Saturation_CUDA(res, fstep);
 
-		//res = ImageSharpening_CUDA(img, step1);
-		//res = Image_Inversion_CUDA(res, step2);
+		float coffHELM_second = HELM_CUDA(res);
+			
+		std::cout << "HELM (sharpness): " << (-1)*(coffHELM_second - coffHELM_first) << std::endl;
 
-		//res = BrightnessChange_CUDA(img, step_light);
-		//res = Saturation_CUDA(img, fstep);
-		//float coffHELM = HELM_CUDA(img);
-		float res1 = HELM_CUDA(img);
-
-		std::cout << "HELM: " << res1 << std::endl;
-
-		//cv::imshow("result", res);
+		cv::imshow("result", res);
 
 		std::cout << "Time to calculate: " << ((double)cv::getTickCount() - t0) / cv::getTickFrequency() << " seconds" << std::endl << std::endl;
 
 		fstep = 1.0;
+
 		if (cv::waitKey(1) == 27) flag = 1;
 	}
 
