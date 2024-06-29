@@ -57,7 +57,7 @@ int main()
 			step_light = -step_black;
 		}
 
-		float coffHELM_first = HELM_CUDA(img);
+		//float coffHELM_first = HELM_CUDA(img);
 
 		//res = SimpleDeNoise_CUDA(img);
 
@@ -67,9 +67,13 @@ int main()
 		//res = BrightnessChange_CUDA(res, step_light);
 		//res = Saturation_CUDA(res, fstep);
 
-		float coffHELM_second = HELM_CUDA(res);
-			
-		std::cout << "HELM (sharpness): " << (-1)*(coffHELM_second - coffHELM_first) << std::endl;
+		//float coffHELM_second = HELM_CUDA(res);
+		//float coffACMO = ACMO_CUDA(img);
+		float coffGLVM = GLVM_CUDA(img);
+
+		//std::cout << "HELM (sharpness): " << (-1)*(coffHELM_second - coffHELM_first) << std::endl;
+		//std::cout << "ACMO (sharpness): " << coffACMO << std::endl;
+		std::cout << "GLVM (sharpness): " << coffGLVM << std::endl;
 
 		cv::imshow("result", res);
 

@@ -21,6 +21,9 @@ __global__ void SaturationKernel(unsigned char* img, float saturation, unsigned 
 __global__ void AverageX15(unsigned char* img, unsigned char* output, int column, int row);
 __global__ void HELM_calc(unsigned char* img, unsigned char* average, unsigned char* output);
 
+__global__ void SumHistogram(int* output, int* Histogram_Blue, int* Histogram_Green, int* Histogram_Red);
+__global__ void Histogram(unsigned char* img, int* Histogram_Blue, int* Histogram_Green, int* Histogram_Red);
+
 cv::Mat Image_Inversion_CUDA(cv::Mat& img, int step)
 {
 	if (step == 0)
@@ -188,6 +191,171 @@ cv::Mat Saturation_CUDA(cv::Mat& img, float step)
 
 	return res;
 }
+
+static int SumHist(std::vector<int>& hist)
+{
+	int sum = 0;
+
+	//подсчет количества всех пикселей
+	for (int i = 0; i < hist.size(); i++)
+	{
+		sum += hist.at(i);
+	}
+
+	return sum;
+}
+static double Probability(std::vector<int>& hist, int sum, int brightness)
+{
+	return (double)hist.at(brightness) / (double)sum;
+}
+static double AverageHist(std::vector<int>& hist)
+{
+	int sum = 0;
+	//сумма всех значений пикселей (сумма яркостей)
+	for (int i = 0; i < hist.size(); i++)
+	{
+		sum += hist.at(i) * i;
+	}
+
+	return double(sum) / double(pow(hist.size(), 2));
+}
+static std::vector<int> Hist(cv::Mat& img, int size_hist)
+{
+	int temporary = 0;
+
+	std::vector <int> hist(size_hist);
+
+	//рассчет значений гистограммы
+	unsigned size = img.cols * img.rows * img.channels();
+	for (unsigned i = 0; i < size; i++)
+	{
+		temporary = img.data[i];
+		hist.at(temporary) += 1;
+	}
+
+	return hist;
+}
+float ACMO(cv::Mat& img)
+{
+	int size = 256;
+
+	std::vector<int> hist = Hist(img, size);
+	double average = AverageHist(hist);
+	int sum = SumHist(hist);
+
+	double p = 0;
+	double coff = 0;
+
+	for (int i = 0; i < size; i++)
+	{
+		p = Probability(hist, sum, i);
+		coff += std::abs(i - average) * p;
+	}
+
+	return coff;
+}
+
+float ACMO_CUDA(cv::Mat& img)
+{
+	// создание 3х гистограмм
+	unsigned char* input = NULL;
+
+	int Histogram_Blue[256] = { 0 };
+	int Histogram_Green[256] = { 0 };
+	int Histogram_Red[256] = { 0 };
+
+	int* Dev_Histogram_Blue = NULL;
+	int* Dev_Histogram_Green = NULL;
+	int* Dev_Histogram_Red = NULL;
+
+	int InputSize = img.cols * img.rows * img.channels();
+
+	cudaMalloc((void**)&input, InputSize);
+	cudaMalloc((void**)&Dev_Histogram_Blue, 256 * sizeof(int));
+	cudaMalloc((void**)&Dev_Histogram_Green, 256 * sizeof(int));
+	cudaMalloc((void**)&Dev_Histogram_Red, 256 * sizeof(int));
+
+	cudaMemcpy(input, img.data, InputSize, cudaMemcpyHostToDevice);
+	cudaMemcpy(Dev_Histogram_Blue, Histogram_Blue, 256 * sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(Dev_Histogram_Green, Histogram_Green, 256 * sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(Dev_Histogram_Red, Histogram_Red, 256 * sizeof(int), cudaMemcpyHostToDevice);
+
+	dim3 Grid_Image(img.cols, img.rows);
+	Histogram << <Grid_Image, 1 >> > (input, Dev_Histogram_Blue, Dev_Histogram_Green, Dev_Histogram_Red);
+
+	cudaMemcpy(Histogram_Blue, Dev_Histogram_Blue, 256 * sizeof(int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(Histogram_Green, Dev_Histogram_Green, 256 * sizeof(int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(Histogram_Red, Dev_Histogram_Red, 256 * sizeof(int), cudaMemcpyDeviceToHost);
+
+	cudaFree(Dev_Histogram_Blue);
+	cudaFree(Dev_Histogram_Green);
+	cudaFree(Dev_Histogram_Red);
+	cudaFree(input);
+
+	//--------------
+	//сумма гистограмм
+	int* Dev_Histogram_Blue1 = NULL;
+	int* Dev_Histogram_Green1 = NULL;
+	int* Dev_Histogram_Red1 = NULL;
+
+	int* Dev_United = NULL;
+	int United[256] = { 0 };
+
+	cudaMalloc((void**)&Dev_Histogram_Blue1, 256 * sizeof(int));
+	cudaMalloc((void**)&Dev_Histogram_Green1, 256 * sizeof(int));
+	cudaMalloc((void**)&Dev_Histogram_Red1, 256 * sizeof(int));
+	cudaMalloc((void**)&Dev_United, 256 * sizeof(int));
+
+	cudaMemcpy(Dev_Histogram_Blue1, Histogram_Blue, 256 * sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(Dev_Histogram_Green1, Histogram_Green, 256 * sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(Dev_Histogram_Red1, Histogram_Red, 256 * sizeof(int), cudaMemcpyHostToDevice);
+
+	SumHistogram << <1, 256 >> > (Dev_United, Dev_Histogram_Blue1, Dev_Histogram_Green1, Dev_Histogram_Red1);
+
+	cudaMemcpy(United, Dev_United, 256 * sizeof(int), cudaMemcpyDeviceToHost);
+	
+	for (int i = 0; i < 256; i++)
+	{
+		std::cout << i << " United: " << United[i] << std::endl;
+	}
+
+	cudaFree(Dev_Histogram_Blue1);
+	cudaFree(Dev_Histogram_Green1);
+	cudaFree(Dev_Histogram_Red1);
+	cudaFree(Dev_United);
+	//--------------
+	//расчет среднего
+	int sum = 0;
+	float average = 0.0;
+
+	for (int i = 0; i < 256; i++)
+	{
+		sum += United[i] * i;
+		
+	}
+
+	average = float(sum) / float(65535);
+	//-------------
+	//расчет суммы
+	int quantity = 0;
+
+	for (int i = 0; i < 256; i++)
+	{
+		quantity += United[i];
+	}
+	//------------
+	//расчет коэффициента
+	float p = 0;
+	float coff = 0;
+
+	for (int i = 0; i < 256; i++)
+	{
+		p = (float)United[i]/(float)sum;
+		coff += std::abs(i - average) * p;
+	}
+
+	return coff;
+}
 float HELM_CUDA(cv::Mat& img)
 {
 	//calc average
@@ -250,70 +418,49 @@ float HELM_CUDA(cv::Mat& img)
 
 	return res_coff;
 }
-
-
-
-static int SumHist(std::vector<int>& hist)
+float GLVM_CUDA(cv::Mat& img)
 {
-	int sum = 0;
+	//calc average
+	unsigned char* input = NULL;
+	unsigned char* output = NULL;
 
-	//подсчет количества всех пикселей
-	for (int i = 0; i < hist.size(); i++)
+	cv::Mat average(img.size(), img.type());
+
+	const int inputSize = img.rows * img.cols * img.channels();
+
+	cudaMalloc((void**)&input, inputSize);
+	cudaMalloc((void**)&output, inputSize);
+
+	cudaMemcpy(input, img.data, inputSize, cudaMemcpyKind::cudaMemcpyHostToDevice);
+
+	dim3 blockSize(16, 16);
+	dim3 gridSize((img.cols + blockSize.x - 1) / blockSize.x, (img.rows + blockSize.y - 1) / blockSize.y);
+	AverageX15 << <gridSize, blockSize >> > (input, output, img.cols, img.rows);
+
+	cudaMemcpy(average.data, output, inputSize, cudaMemcpyKind::cudaMemcpyDeviceToHost);
+
+	cudaFree(output);
+	cudaFree(input);
+	//-------------------------------
+	//расчет коэффициента
+	float sum = 0;
+
+	// Попиксельное вычитание
+	cv::Mat diff_image;
+	cv::subtract(img, average, diff_image);
+
+	// Возведение в степень 2
+	cv::Mat squared_image;
+	cv::pow(diff_image, 2, squared_image);
+
+	for (int i = 0; i < squared_image.channels(); i++)
 	{
-		sum += hist.at(i);
+		sum += cv::sum(squared_image)[i];
 	}
 
-	return sum;
-}
-static double Probability(std::vector<int>& hist, int sum, int brightness)
-{
-	return (double)hist.at(brightness) / (double)sum;
-}
-static double AverageHist(std::vector<int>& hist)
-{
-	int sum = 0;
-	//сумма всех значений пикселей (сумма яркостей)
-	for (int i = 0; i < hist.size(); i++)
-	{
-		sum += hist.at(i) * i;
-	}
+	float res_coff = sum / float(inputSize);
 
-	return double(sum) / double(pow(hist.size(), 2));
-}
-static std::vector<int> Hist(cv::Mat& img, int size_hist)
-{
-	int temporary = 0;
-
-	std::vector <int> hist(size_hist);
-
-	//рассчет значений гистограммы
-	unsigned size = img.cols * img.rows * img.channels();
-	for (unsigned i = 0; i < size; i++)
-	{
-		temporary = img.data[i];
-		hist.at(temporary) += 1;
-	}
-
-	return hist;
-}
-float ACMO_CUDA(cv::Mat& img)
-{
-	int size = 256;
-
-	std::vector<int> hist = Hist(img, size);
-	double average = AverageHist(hist);
-	int sum = SumHist(hist);
-
-	double p = 0;
-	double coff = 0;
-
-	for (int i = 0; i < size; i++)
-	{
-		p = Probability(hist, sum, i);
-		coff += std::abs(i - average) * p;
-	}
-
-	return coff;
+	return res_coff;
 }
 
 __global__ void Inversion(uchar* img, uchar* output)
@@ -489,6 +636,25 @@ __global__ void HELM_calc(unsigned char* img, unsigned char* average, unsigned c
 			output[idx + i] = img[idx + i];
 		}
 	}
+}
+__global__ void Histogram(unsigned char* img, int* Histogram_Blue, int* Histogram_Green, int* Histogram_Red)
+{
+	int x = blockIdx.x;
+	int y = blockIdx.y;
+
+	int Image_Idx = (x + y * gridDim.x) * 3;
+
+	atomicAdd(&Histogram_Blue[img[Image_Idx]], 1);
+	atomicAdd(&Histogram_Green[img[Image_Idx + 1]], 1);
+	atomicAdd(&Histogram_Red[img[Image_Idx + 2]], 1);
+}
+__global__ void SumHistogram(int* output, int* Histogram_Blue, int* Histogram_Green, int* Histogram_Red)
+{
+	int x = blockIdx.x;
+	int y = blockIdx.y;
+
+	int idx = (x + y * gridDim.x) * 3;
+	output[x] = Histogram_Blue[x] + Histogram_Green[x] + Histogram_Red[x];
 }
 
 __device__ void sort(unsigned char* filterVector)

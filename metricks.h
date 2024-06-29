@@ -11,4 +11,7 @@
 
 	float HELM_CUDA(cv::Mat& img);
 	float ACMO_CUDA(cv::Mat& img);
+	float GLVM_CUDA(cv::Mat& img);
+
+	float ACMO(cv::Mat& img);
 #endif
