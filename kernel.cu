@@ -163,6 +163,11 @@ cv::Mat SimpleDeNoise_CUDA(cv::Mat& img)
 }
 cv::Mat Saturation_CUDA(cv::Mat& img, float step)
 {
+	if (step == 1)
+	{
+		return img;
+	}
+
 	unsigned char* input = NULL;
 	unsigned char* output = NULL;
 
@@ -242,9 +247,9 @@ float ACMO_CUDA(cv::Mat& img)
 	cudaMemcpy(Dev_Histogram_Green1, Histogram_Green, 256 * sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(Dev_Histogram_Red1, Histogram_Red, 256 * sizeof(int), cudaMemcpyHostToDevice);
 
-	//int threadsPerBlock = 256;
-	//int blocksPerGrid = (size + threadsPerBlock - 1) / threadsPerBlock;
-	SumHistogram << <1, 256 >> > (Dev_United, Dev_Histogram_Blue1, Dev_Histogram_Green1, Dev_Histogram_Red1);
+	int threadsPerBlock = 256;
+	int blocksPerGrid = (256 + threadsPerBlock - 1) / threadsPerBlock;
+	SumHistogram << <blocksPerGrid, threadsPerBlock >> > (Dev_United, Dev_Histogram_Blue1, Dev_Histogram_Green1, Dev_Histogram_Red1);
 
 	cudaMemcpy(United, Dev_United, 256 * sizeof(int), cudaMemcpyDeviceToHost);
 	
@@ -263,7 +268,7 @@ float ACMO_CUDA(cv::Mat& img)
 		
 	}
 
-	average = float(sum) / float(65535);
+	average = float(sum) / float(65536);
 	//-------------
 	//расчет суммы
 	int quantity = 0;
@@ -279,7 +284,7 @@ float ACMO_CUDA(cv::Mat& img)
 
 	for (int i = 0; i < 256; i++)
 	{
-		p = (float)United[i]/(float)sum;
+		p = (float)United[i]/(float)quantity;
 		coff += std::abs(i - average) * p;
 	}
 
