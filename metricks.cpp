@@ -5,11 +5,16 @@
 #include <opencv2/highgui/highgui.hpp>
 #include "metricks.h"
 
-using namespace std;
-using namespace cv;
-
 int main()
 {
+	std::vector<int> functions;
+	float coffACMO_CUDA_first = 0.0; float coffACMO_CUDA_second = 0.0;
+	float coffHELM_CUDA_first = 0.0; float coffHELM_CUDA_second = 0.0;
+	float coffGLVM_CUDA_first = 0.0; float coffGLVM_CUDA_second = 0.0;
+	float coffACMO_first = 0.0; float coffACMO_second = 0.0;
+
+	SelectingFunctions(functions);
+
 	cv::VideoCapture cap("D:/CUDA projects/CudaRuntime1/CudaRuntime1/images/cam_1_14.mp4");
 	if (!cap.isOpened())
 	{
@@ -38,7 +43,7 @@ int main()
 
 	while (flag == 0)
 	{
-		cv::Mat img;
+		cv::Mat img, res;
 		if (!cap.read(img))
 		{
 			std::cout << "No Frame available" << std::endl;
@@ -49,33 +54,32 @@ int main()
 
 		double t0 = (double)cv::getTickCount();
 
-		cv::Mat res;
-
 		fstep += istep / 10;
 		if (step_black != 0) // если значение затемнения != 0 то теперь значение яркости это затемнение
 		{
 			step_light = -step_black;
 		}
 
-		//float coffHELM_first = HELM_CUDA(img);
+		//функции работы с изображениями
+
+		CalcMetrics(functions, img, coffACMO_CUDA_first, coffHELM_CUDA_first, coffGLVM_CUDA_first, coffACMO_first);
 
 		//res = SimpleDeNoise_CUDA(img);
 
 		res = Image_Inversion_CUDA(img, step2);
-		//res = ImageSharpening_CUDA(res, step1);
+		res = ImageSharpening_CUDA(res, step1);
 		
-		//res = BrightnessChange_CUDA(res, step_light);
-		//res = Saturation_CUDA(res, fstep);
-
-		//float coffHELM_second = HELM_CUDA(res);
-		//float coffACMO = ACMO_CUDA(img);
-		float coffGLVM = GLVM_CUDA(img);
-
-		//std::cout << "HELM (sharpness): " << (-1)*(coffHELM_second - coffHELM_first) << std::endl;
-		//std::cout << "ACMO (sharpness): " << coffACMO << std::endl;
-		std::cout << "GLVM (sharpness): " << coffGLVM << std::endl;
+		res = BrightnessChange_CUDA(res, step_light);
+		res = Saturation_CUDA(res, fstep);
 
 		cv::imshow("result", res);
+		
+		CalcMetrics(functions, res, coffACMO_CUDA_second, coffHELM_CUDA_second, coffGLVM_CUDA_second, coffACMO_second);
+
+		Changes(coffACMO_CUDA_first, coffHELM_CUDA_first, coffGLVM_CUDA_first, coffACMO_first,
+			coffACMO_CUDA_second, coffHELM_CUDA_second, coffGLVM_CUDA_second, coffACMO_second);
+
+		//----------------------------------------
 
 		std::cout << "Time to calculate: " << ((double)cv::getTickCount() - t0) / cv::getTickFrequency() << " seconds" << std::endl << std::endl;
 

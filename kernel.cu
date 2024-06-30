@@ -3,10 +3,7 @@
 #include "metricks.h"
 #include <opencv2/core/core.hpp>
 #include <opencv2/opencv.hpp>
-
 #include <iostream>
-#include <thrust/device_vector.h>
-#include <thrust/reduce.h>
 
 __device__ void sort(unsigned char* filterVector);
 __device__ void RGBtoHSV(unsigned char r, unsigned char g, unsigned char b, float* h, float* s, float* v);
@@ -17,10 +14,8 @@ __global__ void ApplyingMask(uchar3* img, float* mask, uchar3* output, int colum
 __global__ void MedianFilter(unsigned char* img, unsigned char* output, int column, int row);
 __global__ void sharpeningFilter(unsigned char* img, float* mask, unsigned char* output, unsigned int column, unsigned int row);
 __global__ void SaturationKernel(unsigned char* img, float saturation, unsigned char* output, int column, int row);
-
 __global__ void AverageX15(unsigned char* img, unsigned char* output, int column, int row);
 __global__ void HELM_calc(unsigned char* img, unsigned char* average, unsigned char* output);
-
 __global__ void SumHistogram(int* output, int* Histogram_Blue, int* Histogram_Green, int* Histogram_Red);
 __global__ void Histogram(unsigned char* img, int* Histogram_Blue, int* Histogram_Green, int* Histogram_Red);
 
@@ -192,69 +187,6 @@ cv::Mat Saturation_CUDA(cv::Mat& img, float step)
 	return res;
 }
 
-static int SumHist(std::vector<int>& hist)
-{
-	int sum = 0;
-
-	//подсчет количества всех пикселей
-	for (int i = 0; i < hist.size(); i++)
-	{
-		sum += hist.at(i);
-	}
-
-	return sum;
-}
-static double Probability(std::vector<int>& hist, int sum, int brightness)
-{
-	return (double)hist.at(brightness) / (double)sum;
-}
-static double AverageHist(std::vector<int>& hist)
-{
-	int sum = 0;
-	//сумма всех значений пикселей (сумма яркостей)
-	for (int i = 0; i < hist.size(); i++)
-	{
-		sum += hist.at(i) * i;
-	}
-
-	return double(sum) / double(pow(hist.size(), 2));
-}
-static std::vector<int> Hist(cv::Mat& img, int size_hist)
-{
-	int temporary = 0;
-
-	std::vector <int> hist(size_hist);
-
-	//рассчет значений гистограммы
-	unsigned size = img.cols * img.rows * img.channels();
-	for (unsigned i = 0; i < size; i++)
-	{
-		temporary = img.data[i];
-		hist.at(temporary) += 1;
-	}
-
-	return hist;
-}
-float ACMO(cv::Mat& img)
-{
-	int size = 256;
-
-	std::vector<int> hist = Hist(img, size);
-	double average = AverageHist(hist);
-	int sum = SumHist(hist);
-
-	double p = 0;
-	double coff = 0;
-
-	for (int i = 0; i < size; i++)
-	{
-		p = Probability(hist, sum, i);
-		coff += std::abs(i - average) * p;
-	}
-
-	return coff;
-}
-
 float ACMO_CUDA(cv::Mat& img)
 {
 	// создание 3х гистограмм
@@ -310,15 +242,12 @@ float ACMO_CUDA(cv::Mat& img)
 	cudaMemcpy(Dev_Histogram_Green1, Histogram_Green, 256 * sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(Dev_Histogram_Red1, Histogram_Red, 256 * sizeof(int), cudaMemcpyHostToDevice);
 
+	//int threadsPerBlock = 256;
+	//int blocksPerGrid = (size + threadsPerBlock - 1) / threadsPerBlock;
 	SumHistogram << <1, 256 >> > (Dev_United, Dev_Histogram_Blue1, Dev_Histogram_Green1, Dev_Histogram_Red1);
 
 	cudaMemcpy(United, Dev_United, 256 * sizeof(int), cudaMemcpyDeviceToHost);
 	
-	for (int i = 0; i < 256; i++)
-	{
-		std::cout << i << " United: " << United[i] << std::endl;
-	}
-
 	cudaFree(Dev_Histogram_Blue1);
 	cudaFree(Dev_Histogram_Green1);
 	cudaFree(Dev_Histogram_Red1);
@@ -461,6 +390,70 @@ float GLVM_CUDA(cv::Mat& img)
 	float res_coff = sum / float(inputSize);
 
 	return res_coff;
+}
+
+static int SumHist(std::vector<int>& hist)
+{
+	int sum = 0;
+
+	//подсчет количества всех пикселей
+	for (int i = 0; i < hist.size(); i++)
+	{
+		sum += hist.at(i);
+	}
+
+	return sum;
+}
+static double Probability(std::vector<int>& hist, int sum, int brightness)
+{
+	return (double)hist.at(brightness) / (double)sum;
+}
+static double AverageHist(std::vector<int>& hist)
+{
+	int sum = 0;
+	//сумма всех значений пикселей (сумма яркостей)
+	for (int i = 0; i < hist.size(); i++)
+	{
+		sum += hist.at(i) * i;
+	}
+
+	return double(sum) / double(pow(hist.size(), 2));
+}
+static std::vector<int> Hist(cv::Mat& img, int size_hist)
+{
+	int temporary = 0;
+
+	std::vector <int> hist(size_hist);
+
+	//рассчет значений гистограммы
+	unsigned size = img.cols * img.rows * img.channels();
+	for (unsigned i = 0; i < size; i++)
+	{
+		temporary = img.data[i];
+		hist.at(temporary) += 1;
+	}
+
+	return hist;
+}
+
+float ACMO(cv::Mat& img)
+{
+	int size = 256;
+
+	std::vector<int> hist = Hist(img, size);
+	double average = AverageHist(hist);
+	int sum = SumHist(hist);
+
+	double p = 0;
+	double coff = 0;
+
+	for (int i = 0; i < size; i++)
+	{
+		p = Probability(hist, sum, i);
+		coff += std::abs(i - average) * p;
+	}
+
+	return coff;
 }
 
 __global__ void Inversion(uchar* img, uchar* output)
@@ -650,11 +643,9 @@ __global__ void Histogram(unsigned char* img, int* Histogram_Blue, int* Histogra
 }
 __global__ void SumHistogram(int* output, int* Histogram_Blue, int* Histogram_Green, int* Histogram_Red)
 {
-	int x = blockIdx.x;
-	int y = blockIdx.y;
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-	int idx = (x + y * gridDim.x) * 3;
-	output[x] = Histogram_Blue[x] + Histogram_Green[x] + Histogram_Red[x];
+	output[i] = Histogram_Blue[i] + Histogram_Green[i] + Histogram_Red[i];
 }
 
 __device__ void sort(unsigned char* filterVector)
@@ -741,4 +732,93 @@ __device__ void HSVtoRGB(float h, float s, float v, unsigned char* r, unsigned c
 	*r = (unsigned char)((r_ + m) * 255.0f);
 	*g = (unsigned char)((g_ + m) * 255.0f);
 	*b = (unsigned char)((b_ + m) * 255.0f);
+}
+
+void Changes(float& cACMO_CUDA1, float& cHELM_CUDA1, float& cGLVM_CUDA1, float& cACMO1,
+			 float& cACMO_CUDA2, float& cHELM_CUDA2, float& cGLVM_CUDA2, float& cACMO2)
+{
+	std::cout << std::endl << "---------------------------------------" << std::endl;
+	std::cout << "Change: " << std::endl;
+	std::cout << "ACMO_CUDA: " << cACMO_CUDA1 - cACMO_CUDA2 << std::endl;
+	std::cout << "HELM_CUDA: " << cHELM_CUDA1 - cHELM_CUDA2 << std::endl;
+	std::cout << "GLVM_CUDA: " << cGLVM_CUDA1 - cGLVM_CUDA2 << std::endl;
+	std::cout << "ACMO: " << cACMO1 - cACMO2 << std::endl;
+	std::cout << "---------------------------------------" << std::endl;
+}
+void CalcMetrics(std::vector<int> list, cv::Mat& img, float& cACMO_CUDA, float& cHELM_CUDA, float& cGLVM_CUDA, float& cACMO)
+{
+	float coffACMO_CUDA = 0.0;
+	float coffHELM_CUDA = 0.0;
+	float coffGLVM_CUDA = 0.0;
+	float coffACMO = 0.0;
+
+	for (int i = 0; i < list.size(); i++)
+	{
+		switch (list[i])
+		{
+		case 1:
+			coffACMO_CUDA = ACMO_CUDA(img);
+			break;
+		case 2:
+			coffHELM_CUDA = HELM_CUDA(img);
+			break;
+		case 3:
+			coffGLVM_CUDA = GLVM_CUDA(img);
+			break;
+		case 4:
+			coffACMO = ACMO(img);
+			break;
+		case 5:
+			coffACMO_CUDA = ACMO_CUDA(img);
+			coffHELM_CUDA = HELM_CUDA(img);
+			coffGLVM_CUDA = GLVM_CUDA(img);
+			coffACMO = ACMO(img);
+			break;
+		default:
+			std::cout << "Error" << std::endl;
+			break;
+		}
+	}
+	cACMO_CUDA = coffACMO_CUDA;
+	cHELM_CUDA = coffHELM_CUDA;
+	cGLVM_CUDA = coffGLVM_CUDA;
+	cACMO = coffACMO;
+}
+void SelectingFunctions(std::vector<int>& dst)
+{
+	std::vector<std::string> list = {"ACMO_CUDA","HELM_CUDA","GLVM_CUDA","ACMO"};
+	std::vector<int> selected;
+	
+	std::cout << "Enter the function numbers for their operation (when finished selecting, enter 0): " << std::endl;
+
+	for (int i = 0; i < list.size(); i++)
+	{
+		std::cout << i + 1 << ". " << list[i] << std::endl;
+
+		if (i + 1 == list.size())
+		{
+			std::cout << i + 2 << ". " << "Use all functions" << std::endl;
+		}
+	}
+
+	int choice;
+	std::cout << "Enter item number: ";
+	std::cin >> choice;
+
+	while (choice != 0)
+	{
+		if (choice >= 1 && choice <= list.size() + 1)
+		{
+			selected.push_back(choice);
+		}
+		else 
+		{
+			std::cout << "Invalid input" << std::endl;
+		}
+
+		std::cout << "Enter next item number (or 0 to complete): ";
+		std::cin >> choice;
+	}
+
+	dst = selected;
 }
