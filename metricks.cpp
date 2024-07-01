@@ -8,14 +8,12 @@
 int main()
 {
 	std::vector<int> functions;
-	float coffACMO_CUDA_first = 0.0; float coffACMO_CUDA_second = 0.0;
-	float coffHELM_CUDA_first = 0.0; float coffHELM_CUDA_second = 0.0;
-	float coffGLVM_CUDA_first = 0.0; float coffGLVM_CUDA_second = 0.0;
-	float coffACMO_first = 0.0; float coffACMO_second = 0.0;
+	std::vector<float> odds_first(5); // в скобках количество метрик
+	std::vector<float> odds_second(5);
 
 	SelectingFunctions(functions);
 
-	cv::VideoCapture cap("D:/CUDA projects/CudaRuntime1/CudaRuntime1/images/cam_1_14.mp4");
+	cv::VideoCapture cap("video/cam_1_14.mp4");
 	if (!cap.isOpened())
 	{
 		std::cout << "Error opening video stream" << std::endl;
@@ -27,17 +25,17 @@ int main()
 	cv::namedWindow("trackbar", cv::WINDOW_NORMAL);
 
 	bool flag = 0;
-
-	float fstep = 1.0;
-	int istep = 0;
-
-	int step1 = 0;
-	int step2 = 0;
+	float saturation_fstep = 1.0;
+	int saturation_step = 0;
+	int sharpening_step = 0;
+	int inversion_step = 0;
+	int denoise_step = 0;
 	int step_light = 0, step_black = 0;
-
-	cv::createTrackbar("Sharpening:", "trackbar", &step1, 1);
-	cv::createTrackbar("Inversion:", "trackbar", &step2, 1);
-	cv::createTrackbar("Saturation:", "trackbar", &istep, 40);
+	
+	cv::createTrackbar("DeNoise:", "trackbar", &denoise_step, 1);
+	cv::createTrackbar("Inversion:", "trackbar", &inversion_step, 1);
+	cv::createTrackbar("Sharpening:", "trackbar", &sharpening_step, 1);
+	cv::createTrackbar("Saturation:", "trackbar", &saturation_step, 40);
 	cv::createTrackbar("PosBright:", "trackbar", &step_light, 20);
 	cv::createTrackbar("NegBright:", "trackbar", &step_black, 20);
 
@@ -54,7 +52,7 @@ int main()
 
 		double t0 = (double)cv::getTickCount();
 
-		fstep += istep / 10;
+		saturation_fstep += saturation_step / 10;
 		if (step_black != 0) // если значение затемнени€ != 0 то теперь значение €ркости это затемнение
 		{
 			step_light = -step_black;
@@ -62,28 +60,26 @@ int main()
 
 		//функции работы с изображени€ми
 
-		CalcMetrics(functions, img, coffACMO_CUDA_first, coffHELM_CUDA_first, coffGLVM_CUDA_first, coffACMO_first);
+		CalcMetrics(functions, img, odds_first);
 
-		//res = SimpleDeNoise_CUDA(img);
+		res = SimpleDeNoise_CUDA(img, denoise_step);
 
-		res = Image_Inversion_CUDA(img, step2);
-		res = ImageSharpening_CUDA(res, step1);
-		
+		res = Image_Inversion_CUDA(res, inversion_step);
+		res = ImageSharpening_CUDA(res, sharpening_step);
 		res = BrightnessChange_CUDA(res, step_light);
-		res = Saturation_CUDA(res, fstep);
+		res = Saturation_CUDA(res, saturation_fstep);
 
 		cv::imshow("result", res);
 		
-		CalcMetrics(functions, res, coffACMO_CUDA_second, coffHELM_CUDA_second, coffGLVM_CUDA_second, coffACMO_second);
+		CalcMetrics(functions, res, odds_second);
 
-		Changes(coffACMO_CUDA_first, coffHELM_CUDA_first, coffGLVM_CUDA_first, coffACMO_first,
-			coffACMO_CUDA_second, coffHELM_CUDA_second, coffGLVM_CUDA_second, coffACMO_second);
+		Changes(odds_first, odds_second);
 
 		//----------------------------------------
 
 		std::cout << "Time to calculate: " << ((double)cv::getTickCount() - t0) / cv::getTickFrequency() << " seconds" << std::endl << std::endl;
 
-		fstep = 1.0;
+		saturation_fstep = 1.0;
 
 		if (cv::waitKey(1) == 27) flag = 1;
 	}

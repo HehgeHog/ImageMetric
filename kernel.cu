@@ -106,6 +106,7 @@ cv::Mat BrightnessChange_CUDA(cv::Mat& img, int step)
 
 	if (step < 0)
 	{
+		step = step * (-1);
 		float matr[9]
 		{
 			 -0.05 - 0.15 * step, 0.02 + 0.05 * step, -0.05 - 0.15 * step,
@@ -136,8 +137,13 @@ cv::Mat BrightnessChange_CUDA(cv::Mat& img, int step)
 	return res;
 
 }
-cv::Mat SimpleDeNoise_CUDA(cv::Mat& img)
+cv::Mat SimpleDeNoise_CUDA(cv::Mat& img, int step)
 {
+	if (step == 0)
+	{
+		return img;
+	}
+
 	unsigned char* input = NULL;
 	unsigned char* output = NULL;
 
@@ -192,7 +198,7 @@ cv::Mat Saturation_CUDA(cv::Mat& img, float step)
 	return res;
 }
 
-float ACMO_CUDA(cv::Mat& img)
+float ACMO_CUDA(cv::Mat& img) 
 {
 	// создание 3х гистограмм
 	unsigned char* input = NULL;
@@ -289,7 +295,7 @@ float ACMO_CUDA(cv::Mat& img)
 	}
 
 	return coff;
-}
+} 
 float HELM_CUDA(cv::Mat& img)
 {
 	//calc average
@@ -460,6 +466,27 @@ float ACMO(cv::Mat& img)
 
 	return coff;
 }
+float HISE(cv::Mat& img)
+{
+	int size = 256;
+
+	std::vector<int> hist = Hist(img, size);
+	int sum = SumHist(hist);
+
+	double p = 0;
+	double coff = 0;
+
+	for (int i = 0; i < size; i++)
+	{
+		p = Probability(hist, sum, i);
+		if (p != 0)
+		{
+			coff += p * log(p);
+		}
+	}
+
+	return coff * (-1);
+};
 
 __global__ void Inversion(uchar* img, uchar* output)
 {
@@ -739,23 +766,24 @@ __device__ void HSVtoRGB(float h, float s, float v, unsigned char* r, unsigned c
 	*b = (unsigned char)((b_ + m) * 255.0f);
 }
 
-void Changes(float& cACMO_CUDA1, float& cHELM_CUDA1, float& cGLVM_CUDA1, float& cACMO1,
-			 float& cACMO_CUDA2, float& cHELM_CUDA2, float& cGLVM_CUDA2, float& cACMO2)
+void Changes(std::vector<float> odds_first, std::vector<float> odds_second)
 {
 	std::cout << std::endl << "---------------------------------------" << std::endl;
 	std::cout << "Change: " << std::endl;
-	std::cout << "ACMO_CUDA: " << cACMO_CUDA1 - cACMO_CUDA2 << std::endl;
-	std::cout << "HELM_CUDA: " << cHELM_CUDA1 - cHELM_CUDA2 << std::endl;
-	std::cout << "GLVM_CUDA: " << cGLVM_CUDA1 - cGLVM_CUDA2 << std::endl;
-	std::cout << "ACMO: " << cACMO1 - cACMO2 << std::endl;
+	std::cout << "ACMO_CUDA: " << odds_first[0] - odds_second[0] << std::endl;
+	std::cout << "HELM_CUDA: " << odds_first[1] - odds_second[1] << std::endl;
+	std::cout << "GLVM_CUDA: " << odds_first[2] - odds_second[2] << std::endl;
+	std::cout << "ACMO: " << odds_first[3] - odds_second[3] << std::endl;
+	std::cout << "HISE: " << odds_first[4] - odds_second[4] << std::endl;
 	std::cout << "---------------------------------------" << std::endl;
 }
-void CalcMetrics(std::vector<int> list, cv::Mat& img, float& cACMO_CUDA, float& cHELM_CUDA, float& cGLVM_CUDA, float& cACMO)
+void CalcMetrics(std::vector<int> list, cv::Mat& img, std::vector<float>& odds)
 {
 	float coffACMO_CUDA = 0.0;
 	float coffHELM_CUDA = 0.0;
 	float coffGLVM_CUDA = 0.0;
 	float coffACMO = 0.0;
+	float coffHISE = 0.0;
 
 	for (int i = 0; i < list.size(); i++)
 	{
@@ -774,24 +802,30 @@ void CalcMetrics(std::vector<int> list, cv::Mat& img, float& cACMO_CUDA, float& 
 			coffACMO = ACMO(img);
 			break;
 		case 5:
+			coffHISE = HISE(img);
+			break;
+		case 6:
 			coffACMO_CUDA = ACMO_CUDA(img);
 			coffHELM_CUDA = HELM_CUDA(img);
 			coffGLVM_CUDA = GLVM_CUDA(img);
 			coffACMO = ACMO(img);
+			coffHISE = HISE(img);
 			break;
 		default:
 			std::cout << "Error" << std::endl;
 			break;
 		}
 	}
-	cACMO_CUDA = coffACMO_CUDA;
-	cHELM_CUDA = coffHELM_CUDA;
-	cGLVM_CUDA = coffGLVM_CUDA;
-	cACMO = coffACMO;
+	
+	odds[0] = coffACMO_CUDA;
+	odds[1] = coffHELM_CUDA;
+	odds[2] = coffGLVM_CUDA;
+	odds[3] = coffACMO;
+	odds[4] = coffHISE;
 }
 void SelectingFunctions(std::vector<int>& dst)
 {
-	std::vector<std::string> list = {"ACMO_CUDA","HELM_CUDA","GLVM_CUDA","ACMO"};
+	std::vector<std::string> list = {"ACMO_CUDA","HELM_CUDA","GLVM_CUDA","ACMO","HISE"};
 	std::vector<int> selected;
 	
 	std::cout << "Enter the function numbers for their operation (when finished selecting, enter 0): " << std::endl;

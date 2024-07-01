@@ -7,7 +7,7 @@
 #include<opencv2/highgui.hpp>
 #include<opencv2/imgcodecs.hpp>
 
-void Functions::CalcMetrics(cv::Mat& img)
+void Functions::CalcMetrics_old(cv::Mat& img)
 {
     std::vector<std::string> Name = {"ACMO","HISE","BREN"}; // {"ACMO","HISE","BREN", "CONT", "HELM", "GLVM", "GLVA"};
     
@@ -23,7 +23,7 @@ void Functions::CalcMetrics(cv::Mat& img)
 
     std::cout << "--------------------" << std::endl;
 
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < Name.size(); i++)
     {
         show(Coff[i],Name[i]);
     }
@@ -31,6 +31,116 @@ void Functions::CalcMetrics(cv::Mat& img)
 void Functions::show(double coff, std::string name)
 {
     std::cout << name << " : " << coff << std::endl;
+}
+
+void Functions::SelectingFunctions(std::vector<int>& dst)
+{
+    std::vector<std::string> list = {"ACMO","HISE","BREN", "CONT", "HELM", "GLVM", "GLVA"};
+    std::vector<int> selected;
+
+    std::cout << "Enter the function numbers for their operation (when finished selecting, enter 0): " << std::endl;
+
+    for (int i = 0; i < list.size(); i++)
+    {
+        std::cout << i + 1 << ". " << list[i] << std::endl;
+
+        if (i + 1 == list.size())
+        {
+            std::cout << i + 2 << ". " << "Use all functions" << std::endl;
+        }
+    }
+
+    int choice;
+    std::cout << "Enter item number: ";
+    std::cin >> choice;
+
+    while (choice != 0)
+    {
+        if (choice >= 1 && choice <= list.size() + 1)
+        {
+            selected.push_back(choice);
+        }
+        else
+        {
+            std::cout << "Invalid input" << std::endl;
+        }
+
+        std::cout << "Enter next item number (or 0 to complete): ";
+        std::cin >> choice;
+    }
+
+    dst = selected;
+}
+void Functions::CalcMetrics(std::vector<int> list, cv::Mat& img, std::vector<float>& odds)
+{
+    float coffACMO = 0.0;
+    float coffHISE = 0.0;
+    float coffBREN = 0.0;
+    float coffCONT = 0.0;
+    float coffHELM = 0.0;
+    float coffGLVM = 0.0;
+    float coffGLVA = 0.0;
+
+    for (int i = 0; i < list.size(); i++)
+    {
+        switch (list[i])
+        {
+        case 1:
+            coffACMO = ACMO(img);
+            break;
+        case 2:
+            coffHISE = HISE(img);
+            break;
+        case 3:
+            coffBREN = BREN(img);
+            break;
+        case 4:
+            coffCONT = CONT(img);
+            break;
+        case 5:
+            coffHELM = HELM(img);
+            break;
+        case 6:
+            coffGLVM = GLVM(img);
+            break;
+        case 7:
+            coffGLVA = GLVA(img);
+            break;
+        case 8:
+            coffACMO = ACMO(img);
+            coffHISE = HISE(img);
+            coffBREN = BREN(img);
+            coffCONT = CONT(img);
+            coffHELM = HELM(img);
+            coffGLVM = GLVM(img);
+            coffGLVA = GLVA(img);
+            break;
+        default:
+            std::cout << "Error" << std::endl;
+            break;
+        }
+    }
+
+    odds[0] = coffACMO;
+    odds[1] = coffHISE;
+    odds[2] = coffBREN;
+    odds[3] = coffCONT;
+    odds[4] = coffHELM;
+    odds[5] = coffGLVM;
+    odds[6] = coffGLVA;
+}
+void Functions::Changes(std::vector<float> odds_first, std::vector<float> odds_second)
+{
+    std::cout << std::endl << "---------------------------------------" << std::endl;
+    std::cout << "Change: " << std::endl;
+    std::cout << "ACMO: " << odds_first[0] - odds_second[0] << std::endl;
+    std::cout << "HISE: " << odds_first[1] - odds_second[1] << std::endl;
+    std::cout << "BREN: " << odds_first[2] - odds_second[2] << std::endl;
+    std::cout << "CONT: " << odds_first[3] - odds_second[3] << std::endl;
+    std::cout << "HELM: " << odds_first[4] - odds_second[4] << std::endl;
+    std::cout << "GLVM: " << odds_first[5] - odds_second[5] << std::endl;
+    std::cout << "GLVA: " << odds_first[6] - odds_second[6] << std::endl;
+    std::cout << "---------------------------------------" << std::endl;
 }
 
 static int SumHist(std::vector<int>& hist)
@@ -488,8 +598,13 @@ cv::Mat SimpleSmoothing(cv::Mat& img, int window)
 
     return res;
 }
-cv::Mat Functions::SimpleDeNoise(cv::Mat& img, int window)
+cv::Mat Functions::SimpleDeNoise(cv::Mat& img, int window, int step)
 {
+    if (step == 0)
+    {
+        return img;
+    }
+
     cv::Mat res;
 
     if (img.depth() != 0 && img.depth() != 1) // if != 8 bit
@@ -526,6 +641,11 @@ cv::Mat Functions::SimpleDeNoise(cv::Mat& img, int window)
 
 cv::Mat Functions::ImageSharpening(cv::Mat& img, int step)
 {
+    if (step == 0)
+    {
+        return img;
+    }
+
     cv::Mat res;
 
     if (step < 0)
@@ -553,6 +673,12 @@ cv::Mat Functions::ContrastEnhancement(cv::Mat& img, int step)
 {
     //Контраст определяется в разности яркостей. 
     //Для увеличения контраста нам нужно раздвинуть диапазон яркостей от центра к краям.
+
+    if (step == 0)
+    {
+        return img;
+    }
+
     cv::Mat res;
 
     if (img.depth() != 0 && img.depth() != 1) // if != 8 bit
@@ -598,6 +724,11 @@ cv::Mat Functions::Saturation(cv::Mat& img, int step)
 {
     //Для изменения насыщенности изображение преобразуется в систему цветности HSV и разбивается на слои.
     //К значениям слоя «Sature» прибавляется шаг. 
+    if (step == 0)
+    {
+        return img;
+    }
+
     cv::Mat res;
     std::vector<cv::Mat> hsv;
     cv::cvtColor(img, img, cv::ColorConversionCodes::COLOR_RGB2HSV_FULL);
@@ -609,29 +740,36 @@ cv::Mat Functions::Saturation(cv::Mat& img, int step)
 }
 cv::Mat Functions::BrightnessChange(cv::Mat& img, int step)
 {
+    if (step == 0)
+    {
+        return img;
+    }
+
     cv::Mat res;
     img.copyTo(res);
     cv::Mat kernel_matrix;
 
+    float matr[9]
+    {
+         -0.05 - 0.15 * step, 0.015 + 0.05 * step, -0.05 - 0.15 * step,
+          0.015 + 0.05 * step, 1.3 + 0.5 * step, 0.015 + 0.05 * step,
+         -0.05 - 0.15 * step, 0.015 + 0.05 * step, -0.05 - 0.15 * step
+    };
+    kernel_matrix = cv::Mat(3, 3, CV_32FC1, &matr);
+
     if (step < 0)
     {
-        float matr[9]{
-             -0.05 - 0.15 * step, 0.02 + 0.05 * step, -0.05 - 0.15 * step,
-              0.02 + 0.05 * step, 0.8 + 0.5 * step, 0.02 + 0.05 * step,
-             -0.05 - 0.15 * step, 0.02 + 0.05 * step, -0.05 - 0.15 * step
+        step = step * (-1);
+
+        float matr[9]
+        {
+             0.04 * step, 0.01 * step, 0.04 * step,
+             0.01 * step, 0.1 * step, 0.01 * step,
+             0.04 * step, 0.01 * step, 0.04 * step
         };
         kernel_matrix = cv::Mat(3, 3, CV_32FC1, &matr);
     }
-    else
-    {
-        float matr[9]{
-            -0.05 - 0.15 * step, 0.015 + 0.05 * step, -0.05 - 0.15 * step,
-             0.015 + 0.05 * step, 1.3 + 0.5 * step, 0.015 + 0.05 * step,
-            -0.05 - 0.15 * step, 0.015 + 0.05 * step, -0.05 - 0.15 * step
-        };
-        kernel_matrix = cv::Mat(3, 3, CV_32FC1, &matr);
-    }
-        
+
     cv::filter2D(img, res, 32, kernel_matrix);
 
     return res;
@@ -665,6 +803,11 @@ cv::Mat HistFunc(int step)
 }
 cv::Mat Functions::Expo(cv::Mat& img, int step)
 {
+    if (step == 0)
+    {
+        return img;
+    }
+
     cv::Mat res;
 
     std::vector<cv::Mat> hsv;
@@ -680,6 +823,11 @@ cv::Mat Functions::Expo(cv::Mat& img, int step)
 
 cv::Mat Functions::Hue(cv::Mat& img, int step)
 {
+    if (step == 0)
+    {
+        return img;
+    }
+
     cv::Mat res;
 
     std::vector<cv::Mat> rgb;
@@ -697,6 +845,11 @@ cv::Mat Functions::Hue(cv::Mat& img, int step)
 }
 cv::Mat Functions::Temperature(cv::Mat& img, int step)
 {
+    if (step == 0)
+    {
+        return img;
+    }
+
     cv::Mat res;
 
     std::vector<cv::Mat> rgb;
