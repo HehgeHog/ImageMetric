@@ -7,9 +7,6 @@
 class Functions
 {
 public:
-	static void CalcMetrics_old(cv::Mat& img);
-	static void show(double coff, std::string name);
-
 	static void CalcMetrics(std::vector<int> list, cv::Mat& img, std::vector<float>& odds);
 	static void SelectingFunctions(std::vector<int>& dst);
 	static void Changes(std::vector<float> odds_first, std::vector<float> odds_second);

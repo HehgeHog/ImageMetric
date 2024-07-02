@@ -12,12 +12,15 @@ int main()
 
 	Functions::SelectingFunctions(functions);
 	
-	cv::VideoCapture cap("video/cam_1_14.mp4");
+	cv::VideoCapture cap("video/test1.mp4");
 	if (!cap.isOpened())
 	{
 		std::cout << "Error opening video stream" << std::endl;
 		return -1;
 	}
+
+	int slider_position = 0;
+	int num_frames = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_COUNT));
 
 	bool flag = 0;
 	int denoise_step = 0;
@@ -32,6 +35,8 @@ int main()
 	cv::namedWindow("original", cv::WINDOW_NORMAL);
 	cv::namedWindow("result", cv::WINDOW_NORMAL);
 	cv::namedWindow("trackbar", cv::WINDOW_NORMAL);
+
+	cv::createTrackbar("Slider", "original", &slider_position, num_frames);
 
 	cv::createTrackbar("Denoise:", "trackbar", &denoise_step, 1);
 	cv::createTrackbar("Sharpening:", "trackbar", &sharpening_step, 40);
@@ -53,6 +58,10 @@ int main()
 		}
 
 		cv::imshow("original", img);
+
+		//изменение кадров через слайдер
+		cv::setTrackbarPos("Slider", "original", ++slider_position);
+		cap.set(cv::CAP_PROP_POS_FRAMES, slider_position);
 
 		double t0 = (double)cv::getTickCount();
 		if (step_black != 0) // если значение затемнения != 0 то теперь значение яркости это затемнение
@@ -83,7 +92,7 @@ int main()
 
 		std::cout << "Time to calculate: " << ((double)cv::getTickCount() - t0) / cv::getTickFrequency() << " seconds" << std::endl << std::endl;
 		
-		if (cv::waitKey(1) == 27) flag = 1;
+		if (cv::waitKey(33) == 27) flag = 1;
 	}
 
 	return 0;
